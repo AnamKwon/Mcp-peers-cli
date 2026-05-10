@@ -6,7 +6,7 @@
  * delegates all work to the MCP server (dist/index.js) via JSON-RPC
  * over stdio rather than routing to a Codex app server.
  *
- * Subcommands: setup | review | adversarial-review | task | status | result | cancel
+ * Subcommands: setup | review | adversarial-review | task | status | result | cancel | auto-review
  */
 
 import { spawn } from "node:child_process";
@@ -278,6 +278,70 @@ async function handleTask(args) {
   await handleReview("standard", args);
 }
 
+/**
+ * auto-review: continuously review + improve a single file until clean.
+ * Terminates when a review pass returns zero findings.
+ *
+ * Usage: peers-companion.mjs auto-review <filePath> [--max-rounds N]
+ */
+async function handleAutoReview(args) {
+  const filePath = args.find((a) => !a.startsWith("-"));
+  if (!filePath || !existsSync(filePath)) {
+    console.error("Usage: peers-companion.mjs auto-review <filePath> [--max-rounds N]");
+    process.exit(1);
+  }
+
+  const maxRoundsIdx = args.indexOf("--max-rounds");
+  const maxRounds = maxRoundsIdx >= 0 ? parseInt(args[maxRoundsIdx + 1], 10) : 5;
+
+  console.log(`Auto-review started for ${filePath} (max ${maxRounds} rounds).\n`);
+
+  for (let round = 1; round <= maxRounds; round++) {
+    console.log(`── Round ${round}/${maxRounds} ─────────────────────────────`);
+
+    // 1. Run peer review
+    let reviews;
+    try {
+      reviews = await callMcpTool(
+        "peer_review",
+        { filePath, assistants: ["claude", "codex"], reviewType: "standard", async: false },
+        180_000
+      );
+    } catch (err) {
+      console.error(`Review failed: ${err.message}`);
+      break;
+    }
+
+    const totalFindings = reviews.reduce((n, r) => n + (r.findings?.length ?? 0), 0);
+    renderResults([{ file: filePath, results: reviews }]);
+
+    if (totalFindings === 0) {
+      console.log(`\n✓ No findings in round ${round}. Code is clean — stopping.`);
+      break;
+    }
+
+    if (round === maxRounds) {
+      console.log(`\n⚠ Reached max rounds (${maxRounds}). Stopping with ${totalFindings} finding(s) remaining.`);
+      break;
+    }
+
+    // 2. Auto-improve based on reviews
+    console.log(`\nApplying improvements (${totalFindings} finding(s))...`);
+    let improved;
+    try {
+      improved = await callMcpTool("auto_improve", { filePath, reviews }, 180_000);
+    } catch (err) {
+      console.error(`auto_improve failed: ${err.message}`);
+      break;
+    }
+
+    // 3. Write improved content to disk
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(filePath, improved.improvedContent, "utf8");
+    console.log(`\nApplied: ${improved.summary}\n`);
+  }
+}
+
 // ── main ──────────────────────────────────────────────────────────────────
 
 const [, , subcommand, ...rest] = process.argv;
@@ -287,6 +351,7 @@ const handlers = {
   review: () => handleReview("standard", rest),
   "adversarial-review": () => handleReview("adversarial", rest),
   task: () => handleTask(rest),
+  "auto-review": () => handleAutoReview(rest),
   status: () => handleStatus(rest),
   result: () => handleResult(rest),
   cancel: () => handleCancel(rest),

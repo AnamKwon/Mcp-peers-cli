@@ -1,4 +1,12 @@
 {
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write",
+      "type": "command",
+      "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/post-edit-review-hook.mjs",
+      "timeout": 120000
+    }
+  ],
   "SessionStart": [
     {
       "type": "command",
