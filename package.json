@@ -1,0 +1,31 @@
+{
+  "name": "@openai/mcp-peers-cli",
+  "version": "1.0.0",
+  "description": "Multi-assistant peer code review via MCP — integrates Claude, Codex, and Gemini",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-peers": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "openai": "^6.37.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.2"
+  }
+}

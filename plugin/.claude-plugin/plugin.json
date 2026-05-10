@@ -1,0 +1,6 @@
+{
+  "name": "mcp-peers",
+  "description": "Multi-assistant peer code review — Claude, Codex, and Gemini via MCP",
+  "version": "1.0.0",
+  "author": { "name": "mcp-peers-cli" }
+}
